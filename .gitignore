@@ -1,0 +1,22 @@
+# Środowisko wirtualne
+venv/
+.venv/
+env/
+.env/
+
+# Pamięć podręczna Pythona
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Pliki systemowe MacOS
+.DS_Store
+
+# Wygenerowane pliki aplikacji
+*.png
+*.jpg
+*.jpeg
+
+# Ustawienia IDE
+.vscode/
+.idea/
