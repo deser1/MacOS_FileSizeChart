@@ -37,6 +37,20 @@ Od teraz podwójne kliknięcie na plik automatycznie uruchomi aplikację!
    `chmod +x /ścieżka/do/macos_filesize_chart.command`
 Teraz dwuklik na plik `.command` otworzy aplikację.
 
+## Budowanie samodzielnej aplikacji (Standalone App) dla MacOS
+
+Jeśli chcesz całkowicie ukryć terminal, nie martwić się o zależności i korzystać z narzędzia jak z natywnego programu, możesz łatwo zbudować z niego plik wykonywalny korzystając z **PyInstaller** bezpośrednio na systemie MacOS.
+
+1. Zainstaluj PyInstaller w swoim terminalu:
+   ```bash
+   pip3 install pyinstaller
+   ```
+2. Przejdź do folderu z projektem i zbuduj aplikację za pomocą polecenia:
+   ```bash
+   python3 -m PyInstaller --noconsole --onefile --name "MacOS_FileSizeAnalyzer" macos_filesize_chart.py
+   ```
+3. Po zakończeniu kompilacji (może potrwać kilkanaście sekund), gotową aplikację znajdziesz w nowo utworzonym folderze `dist/`. Plik ten będzie można skopiować np. do katalogu `Aplikacje` i otwierać go zwykłym dwuklikiem bez wyskakującego w tle terminala.
+
 ---
 
 Otworzy się okno aplikacji, w którym możesz:
