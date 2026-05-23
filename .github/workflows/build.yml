@@ -1,0 +1,66 @@
+name: Build Executables
+
+on:
+  push:
+    tags:
+      - 'v*' # Uruchamia się automatycznie po dodaniu nowego tagu (np. v1.2.0)
+  workflow_dispatch: # Pozwala też na ręczne odpalenie z panelu GitHub
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' # Stabilna wersja dla MacOS
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+
+      - name: Build macOS App with PyInstaller
+        run: |
+          # Flaga --windowed tworzy paczkę .app na MacOS
+          pyinstaller --noconsole --windowed macos_filesize_chart.py
+
+      - name: Zip the .app bundle
+        run: |
+          cd dist
+          zip -r macos_filesize_chart.app.zip macos_filesize_chart.app
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macOS-App-Bundle
+          path: dist/macos_filesize_chart.app.zip
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+
+      - name: Build Windows EXE with PyInstaller
+        run: |
+          pyinstaller --noconsole --onefile macos_filesize_chart.py
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-Executable
+          path: dist/macos_filesize_chart.exe
