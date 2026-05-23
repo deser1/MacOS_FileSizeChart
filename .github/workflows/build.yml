@@ -29,7 +29,7 @@ jobs:
       - name: Build macOS App with PyInstaller
         run: |
           # Flaga --windowed tworzy paczkę .app na MacOS
-          pyinstaller --noconsole --windowed --name "MacOS_FileSizeChart" macos_filesize_chart.py
+          pyinstaller --noconsole --windowed --name "MacOS_FileSizeChart" --icon=icon.icns --add-data "icon.png:." macos_filesize_chart.py
 
       - name: Zip the .app bundle
         run: |
@@ -60,7 +60,7 @@ jobs:
 
       - name: Build Windows EXE with PyInstaller
         run: |
-          pyinstaller --noconsole --onefile --name "MacOS_FileSizeChart" macos_filesize_chart.py
+          pyinstaller --noconsole --onefile --name "MacOS_FileSizeChart" --icon=icon.ico --add-data "icon.png;." macos_filesize_chart.py
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

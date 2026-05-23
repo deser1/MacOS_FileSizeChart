@@ -8,6 +8,14 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from pathlib import Path
 
+def resource_path(relative_path):
+    """Zwraca bezwzględną ścieżkę do zasobu (działa w dev i w skompilowanym PyInstallerze)"""
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 def get_file_size(file_path):
     try:
         return os.path.getsize(file_path)
@@ -324,6 +332,15 @@ class FileSizeApp:
 def main():
     root = tk.Tk()
     
+    # Ustawienie ikony okna
+    icon_path = resource_path("icon.png")
+    if os.path.exists(icon_path):
+        try:
+            icon_img = tk.PhotoImage(file=icon_path)
+            root.iconphoto(True, icon_img)
+        except Exception:
+            pass
+            
     # Próba ustawienia ładniejszego motywu na MacOS
     try:
         from tkinter import ttk
