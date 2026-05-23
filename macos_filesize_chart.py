@@ -295,13 +295,10 @@ class FileSizeApp:
         # Rysowanie osi Y
         self.canvas.create_line(margin_left, margin_top, margin_left, h - margin_bottom + 10, width=2, fill="gray")
         
-        # Aby największe pliki były na górze, odwracamy listę danych
-        files_data_reversed = list(reversed(self.current_files_data))
-        
-        for i, (file_path, size) in enumerate(files_data_reversed):
-            # Kolory dopasowane do indeksu oryginału (odwrócone)
-            original_idx = num_bars - 1 - i
-            color = COLORS[original_idx % len(COLORS)]
+        # Iterujemy bezpośrednio po posortowanej liście (największe są na początku, czyli na górze płótna Y=0)
+        for i, (file_path, size) in enumerate(self.current_files_data):
+            # Zachowujemy te same kolory co na wykresie kołowym
+            color = COLORS[i % len(COLORS)]
             
             # Szerokość słupka (proporcjonalnie do max_size)
             bar_length = (size / max_size) * chart_w if max_size > 0 else 0
