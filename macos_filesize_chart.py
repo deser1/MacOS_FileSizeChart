@@ -3,34 +3,10 @@
 
 import os
 import sys
-import subprocess
 import threading
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from pathlib import Path
-
-# --- Automatyczna instalacja zależności ---
-def _check_dependencies():
-    try:
-        import matplotlib
-    except ImportError:
-        print("Brak biblioteki 'matplotlib'. Trwa automatyczna instalacja, proszę czekać...")
-        try:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "matplotlib>=3.5.0"])
-            print("Instalacja zależności zakończona sukcesem.")
-        except Exception as e:
-            print(f"Nie udało się automatycznie zainstalować zależności: {e}")
-            print("Zainstaluj je ręcznie poleceniem: pip3 install matplotlib")
-            sys.exit(1)
-
-_check_dependencies()
-
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import matplotlib
-
-# Konfiguracja backendu matplotlib dla Tkinter
-matplotlib.use("TkAgg")
 
 def get_file_size(file_path):
     try:
@@ -47,6 +23,12 @@ def format_size(size_bytes):
         size_bytes /= 1024.0
     return f"{size_bytes:.2f} PB"
 
+# Paleta kolorów dla własnego renderera wykresów
+COLORS = [
+    "#4a90e2", "#f5a623", "#7ed321", "#d0021b", "#bd10e0",
+    "#50e3c2", "#f8e71c", "#8b572a", "#417505", "#4a4a4a"
+]
+
 class FileSizeApp:
     def __init__(self, root):
         self.root = root
@@ -58,6 +40,9 @@ class FileSizeApp:
         self.target_dir = tk.StringVar(value=os.path.expanduser("~"))
         self.num_files = tk.IntVar(value=10)
         self.is_scanning = False
+        
+        self.current_files_data = []
+        self.chart_type = tk.StringVar(value="pie") # 'pie' lub 'bar'
         
         self.setup_ui()
         
@@ -105,15 +90,17 @@ class FileSizeApp:
         ttk.Label(list_frame, text="Szczegóły Plików:").pack(anchor=tk.W, pady=(0, 5))
         
         # Treeview dla listy plików
-        columns = ("#", "Rozmiar", "Nazwa Pliku")
+        columns = ("#", "Rozmiar", "Nazwa Pliku", "Lokalizacja")
         self.tree = ttk.Treeview(list_frame, columns=columns, show="headings", selectmode="none")
         self.tree.heading("#", text="Lp.", anchor=tk.CENTER)
         self.tree.heading("Rozmiar", text="Rozmiar", anchor=tk.CENTER)
         self.tree.heading("Nazwa Pliku", text="Nazwa Pliku", anchor=tk.W)
+        self.tree.heading("Lokalizacja", text="Lokalizacja", anchor=tk.W)
         
         self.tree.column("#", width=40, anchor=tk.CENTER)
         self.tree.column("Rozmiar", width=80, anchor=tk.CENTER)
-        self.tree.column("Nazwa Pliku", width=250, anchor=tk.W)
+        self.tree.column("Nazwa Pliku", width=150, anchor=tk.W)
+        self.tree.column("Lokalizacja", width=250, anchor=tk.W)
         
         # Pasek przewijania dla listy
         scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.tree.yview)
@@ -122,13 +109,24 @@ class FileSizeApp:
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Panel z wykresem
+        # Panel z wykresem (Własny renderer Canvas)
         self.chart_frame = ttk.Frame(results_frame)
         self.chart_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
         
-        self.figure = plt.Figure(figsize=(6, 6), dpi=100)
-        self.canvas = FigureCanvasTkAgg(self.figure, self.chart_frame)
-        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        # Kontrolki typu wykresu
+        chart_controls = ttk.Frame(self.chart_frame)
+        chart_controls.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Label(chart_controls, text="Typ wykresu:").pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Radiobutton(chart_controls, text="Kołowy", variable=self.chart_type, value="pie", command=self.draw_chart).pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(chart_controls, text="Słupkowy", variable=self.chart_type, value="bar", command=self.draw_chart).pack(side=tk.LEFT, padx=5)
+        
+        # Płótno na którym będziemy własnoręcznie rysować wykresy
+        self.canvas = tk.Canvas(self.chart_frame, bg="white", highlightthickness=1, highlightbackground="#cccccc")
+        self.canvas.pack(fill=tk.BOTH, expand=True)
+        
+        # Przerysowywanie wykresu przy zmianie rozmiaru okna
+        self.canvas.bind("<Configure>", lambda e: self.draw_chart())
         
     def browse_directory(self):
         directory = filedialog.askdirectory(initialdir=self.target_dir.get(), title="Wybierz katalog do skanowania")
@@ -151,8 +149,8 @@ class FileSizeApp:
         # Wyczyść poprzednie wyniki
         for item in self.tree.get_children():
             self.tree.delete(item)
-        self.figure.clear()
-        self.canvas.draw()
+        self.canvas.delete("all")
+        self.current_files_data = []
         
         # Uruchom skanowanie w osobnym wątku, aby nie blokować GUI
         thread = threading.Thread(target=self.scan_directory_thread, args=(directory, self.num_files.get()))
@@ -194,33 +192,137 @@ class FileSizeApp:
             return
             
         self.status_var.set(f"Zakończono. Znaleziono {len(files_data)} największych plików.")
+        self.current_files_data = files_data
         
         # Aktualizacja tabeli
-        labels = []
-        sizes = []
-        
         for i, (file_path, size) in enumerate(files_data, 1):
             file_name = Path(file_path).name
             formatted_size = format_size(size)
+            self.tree.insert("", tk.END, values=(i, formatted_size, file_name, file_path))
             
-            # Wstaw do tabeli
-            self.tree.insert("", tk.END, values=(i, formatted_size, file_name))
+        # Rysowanie wykresu po raz pierwszy
+        self.draw_chart()
+
+    def draw_chart(self):
+        """Główny dyspozytor rysowania wykresów na podstawie wybranego typu."""
+        self.canvas.delete("all")
+        if not self.current_files_data:
+            return
             
-            # Dane do wykresu
-            labels.append(f"{file_name}\n({formatted_size})")
-            sizes.append(size)
-            
-        # Aktualizacja wykresu kołowego
-        self.figure.clear()
-        ax = self.figure.add_subplot(111)
+        w = self.canvas.winfo_width()
+        h = self.canvas.winfo_height()
         
-        ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140,
-               wedgeprops={'edgecolor': 'white'})
-        ax.set_title("Największe pliki", pad=20, fontweight='bold')
-        ax.axis('equal')
+        # Tkinter na początku może zwrócić 1x1 jeśli okno nie zostało w pełni wyrenderowane
+        if w < 10 or h < 10:
+            self.root.after(100, self.draw_chart)
+            return
+            
+        if self.chart_type.get() == "pie":
+            self.draw_pie_chart(w, h)
+        else:
+            self.draw_bar_chart(w, h)
+            
+    def draw_pie_chart(self, w, h):
+        """Własny kod renderujący wykres kołowy."""
+        total_size = sum(size for _, size in self.current_files_data)
+        if total_size == 0:
+            return
+            
+        # Marginesy i wyliczenia wymiarów
+        margin = 40
+        legend_width = 180
+        chart_w = w - legend_width
         
-        self.figure.tight_layout()
-        self.canvas.draw()
+        cx = chart_w / 2
+        cy = h / 2
+        r = min(cx, cy) - margin
+        
+        if r <= 0:
+            return
+            
+        start_angle = 0
+        
+        # Tytuł wykresu
+        self.canvas.create_text(w/2, 20, text="Rozkład największych plików", font=("Arial", 12, "bold"))
+        
+        # Rysowanie wycinków (wedges) i legendy
+        for i, (file_path, size) in enumerate(self.current_files_data):
+            extent = (size / total_size) * 360
+            color = COLORS[i % len(COLORS)]
+            
+            # Tkinter rysuje kąty odwrotnie do wskazówek zegara, co działa idealnie
+            self.canvas.create_arc(cx - r, cy - r, cx + r, cy + r,
+                                   start=start_angle, extent=extent,
+                                   fill=color, outline="white", width=1.5)
+            
+            # Legenda po prawej stronie
+            legend_x = chart_w + 10
+            legend_y = margin + i * 25
+            
+            self.canvas.create_rectangle(legend_x, legend_y, legend_x + 15, legend_y + 15, fill=color, outline="black")
+            
+            file_name = Path(file_path).name
+            if len(file_name) > 16:
+                file_name = file_name[:13] + "..."
+                
+            pct = (size / total_size) * 100
+            text = f"{file_name} ({pct:.1f}%)"
+            self.canvas.create_text(legend_x + 25, legend_y + 7, text=text, anchor=tk.W, font=("Arial", 9))
+            
+            start_angle += extent
+
+    def draw_bar_chart(self, w, h):
+        """Własny kod renderujący poziomy wykres słupkowy."""
+        margin_left = 150
+        margin_right = 60
+        margin_top = 50
+        margin_bottom = 30
+        
+        chart_w = w - margin_left - margin_right
+        chart_h = h - margin_top - margin_bottom
+        
+        if chart_w <= 0 or chart_h <= 0:
+            return
+            
+        max_size = max(size for _, size in self.current_files_data)
+        num_bars = len(self.current_files_data)
+        
+        bar_spacing = 10
+        bar_height = (chart_h - (num_bars - 1) * bar_spacing) / num_bars
+        
+        self.canvas.create_text(w/2, 20, text="Rozmiary największych plików", font=("Arial", 12, "bold"))
+        
+        # Rysowanie osi Y
+        self.canvas.create_line(margin_left, margin_top, margin_left, h - margin_bottom + 10, width=2, fill="gray")
+        
+        # Aby największe pliki były na górze, odwracamy listę danych
+        files_data_reversed = list(reversed(self.current_files_data))
+        
+        for i, (file_path, size) in enumerate(files_data_reversed):
+            # Kolory dopasowane do indeksu oryginału (odwrócone)
+            original_idx = num_bars - 1 - i
+            color = COLORS[original_idx % len(COLORS)]
+            
+            # Szerokość słupka (proporcjonalnie do max_size)
+            bar_length = (size / max_size) * chart_w if max_size > 0 else 0
+            
+            y0 = margin_top + i * (bar_height + bar_spacing)
+            y1 = y0 + bar_height
+            x0 = margin_left
+            x1 = margin_left + bar_length
+            
+            # Słupek
+            self.canvas.create_rectangle(x0, y0, x1, y1, fill=color, outline="black")
+            
+            # Etykieta pliku po lewej (Oś Y)
+            file_name = Path(file_path).name
+            if len(file_name) > 20:
+                file_name = file_name[:17] + "..."
+            self.canvas.create_text(margin_left - 10, (y0 + y1) / 2, text=file_name, anchor=tk.E, font=("Arial", 9))
+            
+            # Etykieta rozmiaru po prawej od słupka
+            formatted_size = format_size(size)
+            self.canvas.create_text(x1 + 5, (y0 + y1) / 2, text=formatted_size, anchor=tk.W, font=("Arial", 8))
 
 def main():
     root = tk.Tk()
