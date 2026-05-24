@@ -1,61 +1,68 @@
-# MacOS File Size Analyzer (GUI)
+# MacOS File Size Chart (GUI)
 
-Aplikacja okienkowa w języku Python, która skanuje wybrany katalog na systemie MacOS, znajduje największe pliki i generuje wbudowany interaktywny wykres kołowy (pie chart) przedstawiający procentowe i ilościowe użycie dysku przez te pliki.
+Aplikacja okienkowa w języku Python, która skanuje wybrany katalog, znajduje w nim największe pliki i generuje wbudowane, estetyczne wykresy (kołowy oraz słupkowy) przedstawiające zużycie przestrzeni dyskowej.
 
 ## Wymagania
 
 - Python 3.7 lub nowszy
-- Wbudowana w Pythona biblioteka `tkinter`
-- Biblioteka `matplotlib`
+- Wbudowana w Pythona biblioteka `tkinter` 
+- **Brak zewnętrznych zależności!** Aplikacja opiera się wyłącznie na standardowych bibliotekach Pythona, dzięki czemu jest bardzo lekka i błyskawicznie się uruchamia.
 
-## Instalacja i Uruchomienie
+## Uruchomienie ze źródeł
 
-1. Upewnij się, że masz zainstalowanego Pythona.
-2. **Nie musisz ręcznie instalować żadnych bibliotek!** Skrypt przy pierwszym uruchomieniu sam sprawdzi, czy posiada wymagane pakiety (np. `matplotlib`) i w razie potrzeby pobierze je automatycznie.
-
-Uruchom poniższe polecenie w terminalu:
+Aby uruchomić aplikację wprost z kodu źródłowego, otwórz terminal (lub wiersz poleceń), przejdź do katalogu z projektem i wykonaj polecenie:
 
 ```bash
 python3 macos_filesize_chart.py
 ```
 
-### Jak uruchamiać aplikację dwuklikiem (jak normalny program na MacOS)?
+---
 
-System MacOS domyślnie otwiera pliki `.py` w edytorze tekstu (np. TextEdit). Aby uruchamiać go jak zwykłą aplikację po dwukrotnym kliknięciu, wykonaj jedną z poniższych metod:
+## Kompilacja (Standalone App)
 
-**Metoda 1: Przypisanie do Python Launcher (Zalecane dla plików .py)**
-1. Kliknij plik `macos_filesize_chart.py` **prawym przyciskiem myszy** (lub Control+Klik).
-2. Wybierz **Informacje (Get Info)**.
-3. Znajdź sekcję **Otwórz w programie: (Open with:)**.
-4. Z rozwijanej listy wybierz **Python Launcher** (znajduje się w Aplikacje -> Python 3.x).
-5. Kliknij przycisk **Zmień wszystko... (Change All...)**.
-Od teraz podwójne kliknięcie na plik automatycznie uruchomi aplikację!
+Aplikację można łatwo skompilować do postaci jednego pliku wykonywalnego (`.exe` na Windows lub paczki `.app` na macOS). Skompilowana aplikacja nie wymaga zainstalowanego Pythona na komputerze docelowym.
 
-**Metoda 2: Zmiana rozszerzenia na .command**
-1. Zmień nazwę pliku z `macos_filesize_chart.py` na `macos_filesize_chart.command`.
-2. Otwórz terminal i nadaj mu prawa do wykonywania poleceniem: 
-   `chmod +x /ścieżka/do/macos_filesize_chart.command`
-Teraz dwuklik na plik `.command` otworzy aplikację.
+### Przygotowanie do kompilacji
+Musisz zainstalować narzędzie `pyinstaller` za pomocą menedżera pakietów pip:
+```bash
+pip install pyinstaller
+```
 
-## Budowanie samodzielnej aplikacji (Standalone App) dla MacOS
+### Kompilacja na systemie Windows (.exe)
+Będąc w folderze projektu, uruchom polecenie:
+```bash
+pyinstaller --noconsole --onefile --name "MacOS_FileSizeChart" --icon=icon.ico --add-data "icon.png;." macos_filesize_chart.py
+```
+Gotowy plik `MacOS_FileSizeChart.exe` pojawi się w folderze `dist\`.
 
-Jeśli chcesz całkowicie ukryć terminal, nie martwić się o zależności i korzystać z narzędzia jak z natywnego programu, możesz łatwo zbudować z niego plik wykonywalny korzystając z **PyInstaller** bezpośrednio na systemie MacOS.
-
-1. Zainstaluj PyInstaller w swoim terminalu:
-   ```bash
-   pip3 install pyinstaller
-   ```
-2. Przejdź do folderu z projektem i zbuduj aplikację za pomocą polecenia:
-   ```bash
-   python3 -m PyInstaller --noconsole --onefile --name "MacOS_FileSizeAnalyzer" macos_filesize_chart.py
-   ```
-3. Po zakończeniu kompilacji (może potrwać kilkanaście sekund), gotową aplikację znajdziesz w nowo utworzonym folderze `dist/`. Plik ten będzie można skopiować np. do katalogu `Aplikacje` i otwierać go zwykłym dwuklikiem bez wyskakującego w tle terminala.
+### Kompilacja na systemie macOS (.app)
+Będąc w folderze projektu na komputerze z systemem Mac, uruchom polecenie:
+```bash
+pyinstaller --noconsole --windowed --name "MacOS_FileSizeChart" --icon=icon.icns --add-data "icon.png:." macos_filesize_chart.py
+```
+Gotowa aplikacja `MacOS_FileSizeChart.app` pojawi się w folderze `dist/`.
 
 ---
 
-Otworzy się okno aplikacji, w którym możesz:
-1. **Wybrać katalog** za pomocą przycisku "Przeglądaj...".
-2. **Wybrać liczbę plików** do przeanalizowania.
-3. Kliknąć **"Rozpocznij Skanowanie"**.
+## Automatyczna kompilacja (GitHub Actions)
 
-Proces działa w tle (nie zawiesza aplikacji), a po zakończeniu po lewej stronie pojawi się tabela ze szczegółami plików, a po prawej stronie interaktywny wykres kołowy.
+Projekt ma już skonfigurowany mechanizm **GitHub Actions**. Oznacza to, że paczki dla obu systemów mogą być budowane automatycznie, bezpośrednio na serwerach GitHuba (co pozwala na zbudowanie aplikacji dla MacOS bez posiadania komputera Apple!).
+
+**Jak pobrać skompilowane wersje z GitHuba?**
+1. Przejdź do zakładki **Actions** na stronie głównej swojego repozytorium GitHub.
+2. Wybierz workflow o nazwie **Build Executables** (po lewej stronie).
+3. Kliknij przycisk **Run workflow** -> **Run workflow** (po prawej stronie).
+4. Po około minucie proces się zakończy. Kliknij na dany przebieg (Run), a na samym dole w sekcji **Artifacts** znajdziesz gotowe paczki do pobrania:
+   - `MacOS_FileSizeChart_Windows` (zawiera plik `.exe`)
+   - `MacOS_FileSizeChart_macOS` (zawiera plik `MacOS_FileSizeChart.app.zip`)
+
+*Uwaga: Paczki generują się automatycznie również wtedy, gdy utworzysz w repozytorium nowy Tag (np. `v1.2.0`).*
+
+---
+
+## Funkcje Aplikacji
+- **Skanowanie dysku:** Możliwość wyboru dowolnego katalogu i wyszukania w nim `N` największych plików.
+- **Tabela wyników:** Lista z numerem porządkowym, rozmiarem, nazwą i dokładną ścieżką do pliku na dysku.
+- **Dwa tryby wykresu:** Płynne przełączanie między wykresem kołowym (z legendą) a wykresem słupkowym za pomocą radio-przycisków.
+- **Autorski renderer:** Rysowanie wykresów zrealizowano przy pomocy wbudowanego płótna `tk.Canvas`, eliminując wady renderowania znane z innych zewnętrznych bibliotek.
+- **Natywny wygląd:** Kod automatycznie wykrywa środowisko macOS i dostosowuje interfejs okna tak, aby idealnie pasował do stylistyki systemu (motyw Aqua).
