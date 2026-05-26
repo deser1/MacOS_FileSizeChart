@@ -110,12 +110,14 @@ class FileSizeApp:
         self.tree.column("Nazwa Pliku", width=150, anchor=tk.W)
         self.tree.column("Lokalizacja", width=250, anchor=tk.W)
         
-        # Pasek przewijania dla listy
-        scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.tree.yview)
-        self.tree.configure(yscroll=scrollbar.set)
+        # Paski przewijania dla listy
+        scrollbar_y = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.tree.yview)
+        scrollbar_x = ttk.Scrollbar(list_frame, orient=tk.HORIZONTAL, command=self.tree.xview)
+        self.tree.configure(yscroll=scrollbar_y.set, xscroll=scrollbar_x.set)
         
+        scrollbar_x.pack(side=tk.BOTTOM, fill=tk.X)
+        scrollbar_y.pack(side=tk.RIGHT, fill=tk.Y)
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
         # Panel z wykresem (Własny renderer Canvas)
         self.chart_frame = ttk.Frame(results_frame)
