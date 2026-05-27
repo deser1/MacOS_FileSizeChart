@@ -7,6 +7,50 @@ import threading
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from pathlib import Path
+import platform
+
+def get_system_drives():
+    drives = []
+    sys_os = platform.system()
+    
+    if sys_os == "Windows":
+        try:
+            import ctypes
+            bitmask = ctypes.windll.kernel32.GetLogicalDrives()
+            for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+                if bitmask & 1:
+                    drive_path = f"{letter}:\\"
+                    vol_name_buf = ctypes.create_unicode_buffer(1024)
+                    try:
+                        ctypes.windll.kernel32.GetVolumeInformationW(
+                            ctypes.c_wchar_p(drive_path),
+                            vol_name_buf, ctypes.sizeof(vol_name_buf),
+                            None, None, None, None, 0
+                        )
+                        vol_name = vol_name_buf.value
+                    except Exception:
+                        vol_name = ""
+                    
+                    display = f"{drive_path} [{vol_name}]" if vol_name else drive_path
+                    drives.append((display, drive_path))
+                bitmask >>= 1
+        except Exception:
+            pass
+    elif sys_os == "Darwin":
+        drives.append(("Macintosh HD (/)", "/"))
+        vol_dir = "/Volumes"
+        if os.path.exists(vol_dir):
+            try:
+                for vol in os.listdir(vol_dir):
+                    path = os.path.join(vol_dir, vol)
+                    if os.path.ismount(path) or os.path.isdir(path):
+                        drives.append((f"{vol} ({path})", path))
+            except Exception:
+                pass
+    else:
+        drives.append(("Root (/)", "/"))
+        
+    return drives
 
 def resource_path(relative_path):
     """Zwraca bezwzględną ścieżkę do zasobu (działa w dev i w skompilowanym PyInstallerze)"""
@@ -52,7 +96,11 @@ class FileSizeApp:
         self.current_files_data = []
         self.chart_type = tk.StringVar(value="pie") # 'pie' lub 'bar'
         
+        self.available_drives = []
+        self.last_drives_set = set()
+        
         self.setup_ui()
+        self.update_drives_list()
         
     def setup_ui(self):
         # Główny kontener
@@ -63,10 +111,11 @@ class FileSizeApp:
         control_frame = ttk.LabelFrame(main_frame, text="Ustawienia Skanowania", padding="10")
         control_frame.pack(fill=tk.X, pady=(0, 10))
         
-        # Wybór katalogu
-        ttk.Label(control_frame, text="Katalog:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        dir_entry = ttk.Entry(control_frame, textvariable=self.target_dir, width=50)
-        dir_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.EW)
+        # Wybór katalogu / Dysku
+        ttk.Label(control_frame, text="Katalog / Dysk:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.dir_combobox = ttk.Combobox(control_frame, textvariable=self.target_dir, width=50)
+        self.dir_combobox.grid(row=0, column=1, padx=5, pady=5, sticky=tk.EW)
+        self.dir_combobox.bind("<<ComboboxSelected>>", self.on_drive_select)
         
         browse_btn = ttk.Button(control_frame, text="Przeglądaj...", command=self.browse_directory)
         browse_btn.grid(row=0, column=2, padx=5, pady=5)
@@ -137,6 +186,30 @@ class FileSizeApp:
         
         # Przerysowywanie wykresu przy zmianie rozmiaru okna
         self.canvas.bind("<Configure>", lambda e: self.draw_chart())
+        
+    def update_drives_list(self):
+        current_drives = get_system_drives()
+        
+        # Sprawdzanie czy lista dysków się zmieniła
+        current_set = set(d[0] for d in current_drives)
+        if current_set != self.last_drives_set:
+            self.available_drives = current_drives
+            self.last_drives_set = current_set
+            
+            # Aktualizacja wartości w ComboBoxie
+            self.dir_combobox['values'] = [d[0] for d in current_drives]
+            
+        # Odświeżaj listę co 2000 ms (2 sekundy) w poszukiwaniu nowych dysków/pendrive'ów
+        self.root.after(2000, self.update_drives_list)
+        
+    def on_drive_select(self, event=None):
+        selection = self.dir_combobox.get()
+        # Wyciągamy rzeczywistą ścieżkę z wybranej nazwy wyświetlanej
+        for display, path in self.available_drives:
+            if selection == display:
+                self.target_dir.set(path)
+                self.dir_combobox.icursor(tk.END)
+                break
         
     def browse_directory(self):
         directory = filedialog.askdirectory(initialdir=self.target_dir.get(), title="Wybierz katalog do skanowania")
