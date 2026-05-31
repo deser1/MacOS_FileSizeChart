@@ -40,7 +40,33 @@ Będąc w folderze projektu na komputerze z systemem Mac, uruchom polecenie:
 ```bash
 pyinstaller --noconsole --windowed --name "MacOS_FileSizeChart" --icon=icon.icns --add-data "icon.png:." macos_filesize_chart.py
 ```
-Gotowa aplikacja `MacOS_FileSizeChart.app` pojawi się w folderze `dist/`.
+Gotowa aplikacja `MacOS_FileSizeChart.app` pojawi się w folderze `dist/`. Plik ten będzie można skopiować np. do katalogu `Aplikacje` i otwierać go zwykłym dwuklikiem bez wyskakującego w tle terminala.
+
+### Certyfikacja (Code Signing) i problemy z Gatekeeper w MacOS
+
+System MacOS rygorystycznie podchodzi do bezpieczeństwa (mechanizm Gatekeeper) i domyślnie blokuje aplikacje, które nie zostały podpisane cyfrowo przez certyfikowanego dewelopera Apple. Po uruchomieniu nowo zbudowanej aplikacji możesz zobaczyć błąd typu *"Aplikacja jest uszkodzona i nie można jej otworzyć"* lub *"Nie można zweryfikować dewelopera"*.
+
+Aby rozwiązać ten problem, masz dwie opcje:
+
+**Opcja 1: Ominięcie ostrzeżenia (Dla osób bez płatnego konta Apple Developer)**
+Najprostszym sposobem na uruchomienie własnoręcznie zbudowanej aplikacji jest usunięcie z niej "atrybutu kwarantanny". W terminalu wpisz:
+```bash
+xattr -cr dist/MacOS_FileSizeChart.app
+```
+*(Alternatywnie: kliknij na aplikację prawym przyciskiem myszy / Control+Klik, wybierz **"Otwórz"** i potwierdź chęć uruchomienia pomimo ostrzeżenia).*
+
+**Opcja 2: Certyfikacja w trakcie kompilacji (Wymaga Apple Developer ID)**
+Jeśli posiadasz płatny certyfikat deweloperski Apple, możesz podpisać aplikację już w trakcie budowania przez PyInstaller, dodając odpowiednie flagi:
+```bash
+python3 -m PyInstaller --noconsole --windowed \
+  --osx-bundle-identifier "com.twojanazwa.filesizechart" \
+  --codesign-identity "Developer ID Application: Twoje Imie (ID)" \
+  --name "MacOS_FileSizeChart" macos_filesize_chart.py
+```
+Możesz także podpisać ją ręcznie już po zbudowaniu narzędziem systemowym `codesign`:
+```bash
+codesign --force --deep --sign "Developer ID Application: Twoje Imie (ID)" dist/MacOS_FileSizeChart.app
+```
 
 ---
 
